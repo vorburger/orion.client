@@ -159,7 +159,9 @@ label.parameterInput{
 .parameterInputtextarea {
 	vertical-align: top;
 	width: 50em;
-	color:#333;
+	color: #333;
+	margin: 5px;
+	border-radius: 3px;
 }
 
 .parameterPopup {

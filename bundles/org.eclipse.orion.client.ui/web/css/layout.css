@@ -160,6 +160,7 @@ hard-coded numbers elsewhere.
  	width: 100%;
  	bottom: 0;
  	overflow-y: auto;
+ 	outline:none;
 }
 
 .hasSplit {
