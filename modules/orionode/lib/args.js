@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012 IBM Corporation and others.
+ * Copyright (c) 2012, 2013 IBM Corporation and others.
  * All rights reserved. This program and the accompanying materials are made 
  * available under the terms of the Eclipse Public License v1.0 
  * (http://www.eclipse.org/legal/epl-v10.html), and the Eclipse Distribution 
@@ -9,13 +9,23 @@
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
 /*global console exports process require*/
-/*jslint regexp:false*/
+/*jslint laxbreak:true regexp:false*/
 var async = require('../lib/async');
 var compat = require('./compat');
-var fs = require('fs');
 var path = require('path');
 var dfs = require('deferred-fs'), Deferred = dfs.Deferred;
 var PATH_TO_NODE = process.execPath;
+
+exports.mixin = function(target /*, src..*/) {
+	Array.prototype.slice.call(arguments, 1).forEach(function(source) {
+		var keys = Object.keys(source);
+		for (var i=0; i < keys.length; i++) {
+			var key = keys[i];
+			target[key] = source[key];
+		}
+	});
+	return target;
+};
 
 /**
  * @param {Array} argv
@@ -25,8 +35,13 @@ exports.parseArgs = function(argv) {
 	argv = argv.slice(2); // skip 'node', 'index.js'
 	var args = {}, match;
 	for (var i=0; i < argv.length; i++) {
-		if ((match = /-(\w+)/.exec(argv[i]))) {
-			var name = match[1], value = argv[i+1];
+		if ((match = /-([^\-\s]+)/.exec(argv[i]))) {
+			var name = match[1], next = argv[i + 1], value;
+			if (i + 1 >= argv.length || (next && next.charAt(0) === '-')) {
+				value = true; // boolean argument: -foo
+			} else {
+				value = next; // argument followed by value: -foo 25
+			}
 			args[name] = value;
 		}
 	}
@@ -34,50 +49,29 @@ exports.parseArgs = function(argv) {
 };
 
 /**
- * @param {Array} Directories to be created. They're created serially to allow subdirs of an earlier entry to appear later in the list.
+ * @param {dirs} Directories to be created (if not already existing). Non-existent dirs are created serially, so subdirs of an earlier 
+ * entry can appear later in the list.
+ * @returns {orion.Promise} A promise resolving to the input dirs.
  */
-exports.createDirs = function(dirs, callback) {
-	var promises = dirs.map(function(dir) {
-		var d = new Deferred();
-		fs.exists(dir, function(error, exists) {
-			if (!exists) {
-				fs.mkdir(dir, function(error) {
-					d.resolve(dir);
-				});
-			} else {
-				d.resolve(dir);
-			}
-		});
-		return d;
-	});
-	var results = [];
-	(function next(i) {
-		if (i === promises.length) {
-			callback(results);
-		} else {
-			promises[i].then(function(dir) {
-				results.push(dir);
-				next(i + 1);
+exports.ensureDirsExist = function(dirs, callback) {
+	return async.sequence(dirs.map(function(dir) {
+		return function() {
+			return dfs.exists(dir).then(function(exists) {
+				if (!exists) {
+					return dfs.mkdir(dir);
+				}
+				return new Deferred().resolve(dir);
 			});
-		}
-	}(0));
+		};
+	})).then(function() {
+		return dirs;
+	});
 };
 
 /**
- * @param {Function} callback Invoked as function(password), the password is null if the file couldn't be read.
+ * @returns {orion.Promise} Returns a promise resolving to the the config file params (or <code>null</code>).
  */
-exports.readPasswordFile = function(passwordFile, callback) {
-	if (passwordFile) {
-		fs.readFile(passwordFile, function(err, data) {
-			if (err) { throw err; }
-			callback(String.prototype.trim.call(data));
-		});
-	} else {
-		callback(null);
-	}
-};
-
-function _checkNpmPath(config, callback){
+var checkNpmPath = exports.checkNpmPath = function(config) {
 	var result = config, npm_path_guess_list = [];
 	if(result && result.npm_path){
 		var npmPath = result.npm_path;
@@ -90,7 +84,7 @@ function _checkNpmPath(config, callback){
 		result = {};
 	}
 	var found = null;
-	
+
 	npm_path_guess_list.push(path.dirname(PATH_TO_NODE) + "/" + "../lib/node_modules/npm/bin/npm-cli.js");
 	npm_path_guess_list.push(path.dirname(PATH_TO_NODE) + "/" + "./node_modules/npm/bin/npm-cli.js");
     var promises = [];
@@ -108,43 +102,79 @@ function _checkNpmPath(config, callback){
 			}
 		});
 	});
-	async.sequence(promises).then(function(existingGuess){
-		if(!existingGuess){
+	return async.sequence(promises).then(function(existingGuess){
+		if(!existingGuess) {
 			result.npm_path = null;
-			var errorMessage = "Could not find npm in the following locations:\n";
-			npm_path_guess_list.forEach(function(guess) {
-				errorMessage = errorMessage + guess + "\n";
-			});
-			errorMessage = errorMessage + "Please add or modify the npm_path in the orion.conf file and restart the server.\n";
+			var errorMessage = "Could not find npm in the following locations:\n"
+				+ npm_path_guess_list.join("\n")
+				+ "Please add or modify the npm_path in the orion.conf file and restart the server.\n";
 			console.log(errorMessage);
-			errorMessage = errorMessage + "For details refer to [how to config npm path](http://wiki.eclipse.org/Orion/Getting_Started_with_Orion_node#Making_sure_Orionode_can_launch_npm)\n";
-			result.npm_error_message = errorMessage;
+			result.npm_error_message = errorMessage + "For details refer to [how to config npm path](http://wiki.eclipse.org/Orion/Getting_Started_with_Orion_node#Making_sure_Orionode_can_launch_npm)\n";
 		} else {
 			result.npm_path = existingGuess;
 		}
-		callback(result);
+		return result;
 	});
-}
+};
 
 /**
- * @param {Function} callback Invoked as function(configObject), the configObject is null if the file couldn't be read.
+ * @returns {orion.Promise} A promise resolving to <code>Object</code> giving the config file params. The value is <code>null</code> if the file couldn't be read.
  */
 exports.readConfigFile = function(configFile, callback) {
-	if (configFile) {
-		fs.readFile(configFile, function(err, content) {
-			if (err) { throw err; }
-			var params = content.toString().split("\n");
-			var result = {};
-			for (var i = 0; i < params.length; i++) {
-				var pair = params[i];
-				var parsed = /([^=]*)(=?)(.*)/.exec(pair);
-				var name = parsed[1] || ""; 
-				var value = parsed[3] || ""; 
+	var promise = configFile ? dfs.readFile(configFile, 'utf8') : new Deferred().resolve();
+	return promise.then(function(content) {
+		if (!content) {
+			return null;
+		}
+		var result = {};
+		var params = content.split(/\r?\n/);
+		params.forEach(function(pair, i) {
+			if (String.prototype.trim.call(pair).charAt(0) === '#') {
+				return;
+			}
+			var parsed = /([^=]*)(=?)(.*)/.exec(pair);
+			var name = parsed[1] || "";
+			var value = parsed[3] || "";
+			if (name !== "") {
+				value = (value === "true") ? true : value;
+				value = (value === "false") ? false: value;
+				value = !isNaN(parseInt(value, 10)) ? parseInt(value, 10) : value;
 				result[name] = value;
 			}
-			_checkNpmPath(result, callback);
 		});
-	} else {
-		_checkNpmPath(null, callback);
-	}
+		return result;
+	})/*.then(checkNpmPath)*/;
 };
+
+/**
+ * Allows mock values of process.argv to be set and read from environment variables.
+ */
+function forEachArgument(func) {
+	Object.keys(process.env).forEach(function(key) {
+		var m;
+		if ((m = /ARGV_(\d+)/.exec(key)) !== null) {
+			func(process.env[key], m[1]);
+		}
+	});
+}
+Object.defineProperty(exports, 'testArgv', {
+	set: function(val) {
+		if (Array.isArray(val)) {
+			val.forEach(function(arg, i) {
+				process.env['ARGV_' + i] = arg;
+			});
+		} else if (val === null || typeof val === 'undefined') {
+			forEachArgument(function(arg, i) {
+				delete process.env['ARGV_' + i];
+			});
+		}
+	},
+	get: function() {
+		var argv = [];
+		forEachArgument(function(value, i) {
+			argv[i] = value;
+		});
+		return argv.length ? argv : null;
+	}
+});
+

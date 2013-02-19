@@ -8,44 +8,64 @@
  * Contributors:
  *     IBM Corporation - initial API and implementation
  *******************************************************************************/
-/*global __dirname console exports process require*/
+/*global __dirname console module exports process require*/
 var path = require('path');
 var util = require('util');
-var argslib = require('./lib/args');
+var args = require('./lib/args');
+var Deferred = require('deferred-fs').Deferred;
 var startServer = require('./index.js');
 
-// Get the arguments, the workspace directory, and the password file (if configured), then launch the server
-var args = argslib.parseArgs(process.argv);
-var port = args.port || args.p || 8081;
-var workspaceArg = args.workspace || args.w;
-var workspaceDir = workspaceArg ? path.resolve(process.cwd(), workspaceArg) : path.join(__dirname, '.workspace');
-var config_params = {};
-argslib.createDirs([workspaceDir], function(dirs) {
-	var passwordFile = args.password || args.pwd;
-	argslib.readPasswordFile(passwordFile, function(password) {
-		argslib.readConfigFile(path.join(__dirname, 'orion.conf'), function(configParams) {
-			if(configParams){
-				config_params = configParams;
-			}
-			var dev = Object.prototype.hasOwnProperty.call(args, 'dev');
-			var log = Object.prototype.hasOwnProperty.call(args, 'log');
+var CONFIG_FILE_PATH = path.join(__dirname, 'orion.conf');
+var DEFAULT_WORKSPACE_PATH = path.join(__dirname, '.workspace');
+
+function printError(err) {
+	console.log('Error launching server:');
+	console.log(err.stack);
+}
+
+/**
+ * This module launches the server when require()'d.
+ * Variables that may be set for testing:
+ *   process.env.TEST_CONFIG_FILE
+ *   args.testArgv
+ */
+module.exports = args.readConfigFile(process.env.TEST_CONFIG_FILE || CONFIG_FILE_PATH).then(function(configParams) {
+	var commandLineArgs = args.parseArgs(args.testArgv || process.argv);
+	// Command-line arguments (if passed) override config params
+	var params = args.mixin({}, configParams, commandLineArgs);
+	console.log('using args: ' + JSON.stringify(params));
+	// Validate the npm_path, then launch the server
+	return args.checkNpmPath(params).then(function(params) {
+		var dev = Object.prototype.hasOwnProperty.call(params, 'dev');
+		var log = Object.prototype.hasOwnProperty.call(params, 'log');
+		var password = String.prototype.trim.call(params.password || params.pwd || '');
+		var port = params.port || params.p || 8081;
+		var workspaceArg = params.workspace || params.w;
+		var workspaceDir = workspaceArg ? path.resolve(process.cwd(), workspaceArg) : DEFAULT_WORKSPACE_PATH;
+		return args.ensureDirsExist([workspaceDir]).then(function(dirs) {
 			if (dev) {
-				console.log('Running in development mode');
+				console.log('Development mode:\tyes');
 			}
-			if (passwordFile) {
-				console.log(util.format('Using password from file: %s', passwordFile));
+			if (log) {
+				console.log('Log server requests: \tyes');
+			}
+			if (password) {
+				console.log('Password: \tyes');
 			}
 			console.log(util.format('Using workspace: %s', workspaceDir));
 			console.log(util.format('Listening on port %d...', port));
-			startServer({
-				port: port,
-				workspaceDir: dirs[0],
-				passwordFile: passwordFile,
-				password: password,
-				configParams: config_params,
-				dev: dev,
-				log: log
-			});
+			try {
+				return new Deferred().resolve(startServer({
+					port: port,
+					workspaceDir: dirs[0],
+					password: password,
+					configParams: configParams,
+					dev: dev,
+					log: log
+				}));
+			} catch (e) {
+				printError(e);
+			}
 		});
 	});
-});
+}).then(null, printError);

@@ -34,7 +34,7 @@ function handleError(err) {
 function noop(req, res, next) { next(); }
 
 function auth(options) {
-	var pwd = options.password || (options.configParams && options.configParams.pwd) || null;
+	var pwd = options.password || null;
 	if (typeof pwd === 'string' && pwd.length > 0) {
 		return connect.basicAuth(function(user, password) {
 			return password === pwd;
