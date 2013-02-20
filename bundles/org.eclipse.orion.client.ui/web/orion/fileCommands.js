@@ -743,7 +743,9 @@ define(['i18n!orion/navigate/nls/messages', 'require', 'orion/webui/littlelib', 
 						var deferred = fileClient.createProject(explorer.treeRoot.ChildrenLocation, name, url, true);
 						var ex = explorer;
 						progressService.showWhile(deferred, i18nUtil.formatMessage(messages["Linking to ${0}"], url)).then(
-							function() {ex.loadResourceList.bind(ex)(this.treeRoot.Path, true); }, // refresh the root
+							function() {
+								ex.loadResourceList.bind(ex)(ex.treeRoot.Path, true); 
+							}, // refresh the root
 							errorHandler);
 					}
 				};
