@@ -24,8 +24,9 @@ define(['require', 'orion/URITemplate', 'orion/URL-shim', 'orion/serviceTracker'
 	function logError(msg) { console.log(msg); }
 
 	/**
-	 * @name orion.importer.Connector
-	 * @class Connects to external services providing data for auto-import.
+	 * @name orion.importer.ImportHandler
+	 * @class Monitors services that are capable of providing data to be imported. When such a service indicates it wants to 
+	 * import data, the data is passed to the <code>injector</code>.
 	 * @param {orion.importer.Injector} injector
 	 * @param {orion.serviceregistry.ServiceRegistry} serviceRegistry
 	 */
@@ -35,7 +36,7 @@ define(['require', 'orion/URITemplate', 'orion/URL-shim', 'orion/serviceTracker'
 		this.tracker = null;
 	}
 	/**
-	 * @name orion.importer.Connector#connect
+	 * @name orion.importer.ImportHandler#connect
 	 * @function
 	 */
 	ImportHandler.prototype.connect = function() {
@@ -49,9 +50,9 @@ define(['require', 'orion/URITemplate', 'orion/URL-shim', 'orion/serviceTracker'
 				debug('Expected import data to be an object');
 				return;
 			}
-			debug('connector got a message: ' + JSON.stringify(data));
-			debug('connector got zip: ' + data.zip + ' ' + data.zip.size + ' bytes');
-			injector.inject(data.user, data.zip, data.projectName).then(function(project) {
+			debug('ImportHandler got a message: ' + JSON.stringify(data));
+			debug('ImportHandler got zip: ' + data.zip + ' ' + data.zip.size + ' bytes');
+			injector.inject(data.createUser, data.userInfo, data.zip, data.projectName).then(function(project) {
 				if (typeof service.onresponse !== 'function') {
 					logError('Expected ' + AUTOIMPORT_SERVICE_NAME + ' service to provide an "onresponse" method');
 				}
@@ -87,7 +88,7 @@ define(['require', 'orion/URITemplate', 'orion/URL-shim', 'orion/serviceTracker'
 		tracker.open();
 	};
 	/**
-	 * @name orion.importer.Connector#disconnect
+	 * @name orion.importer.ImportHandler#disconnect
 	 * @function
 	 */
 	ImportHandler.prototype.disconnect = function() {

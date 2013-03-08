@@ -13,9 +13,23 @@ define(['require', 'orion/Deferred', 'orion/xhr', 'orion/form', 'orion/URL-shim'
 		this.fileClient = fileClient;
 		this.usersClient = usersClient;
 	}
-	Injector.prototype.inject = function(newUser, projectZipData, projectName) {
-		// Log in -- TODO there is no way to login via a service so it's hardcoded :(
-		function doLogin(login, password) {
+	/**
+	 * @param {Boolean} createUser True to create a new user should be created, false to use an existing user.
+	 * @param {Object} userInfo User data for creating new user, or logging in.
+	 * @param {String} [userInfo.email] Required when createUser == true, otherwise ignored.
+	 * @param {String} [userInfo.Name] Required when createUser == true, otherwise ignored.
+	 * @param {String} [userInfo.login] Required when !createUser, otherwise optional.
+	 * @param {String} userInfo.password
+	 * @param {Blob} projectZipData
+	 * @param {String} projectName
+	 */
+	Injector.prototype.inject = function(createUser, userInfo, projectZipData, projectName) {
+		projectName = projectName || 'Project';
+		var fileClient = this.fileClient;
+		var usersClient = this.usersClient;
+
+		// Log in -- TODO no service API for this, so it's hardcoded
+		var doLogin = function(login, password) {
 			debug('logging in...');
 			return xhr('POST', require.toUrl('login/form'), {
 				headers: {
@@ -29,31 +43,29 @@ define(['require', 'orion/Deferred', 'orion/xhr', 'orion/form', 'orion/URL-shim'
 			}).then(function(xhrResult) {
 				return JSON.parse(xhrResult.response);
 			});
-		}
-
-		projectName = projectName || 'Project';
-		var fileClient = this.fileClient;
-		var usersClient = this.usersClient;
-		var createUserAndLogin = function() {
-			var randomSuffix = String(Math.random()).substring(2, 12);
-			var login = 'user' + randomSuffix;
-			var displayName = newUser.Name;
-			var password = newUser.Password;
-			var email = 'user@' + randomSuffix;
-			// display name
-			return usersClient.createUser(login, password, email).then(function(user) {
-				debug('user created');
-				return user;
-			}).then(function(user) {
-				return doLogin(login, password);
-			}).then(function(user) {
-				// Set display name (must be logged in)
-				debug('set display name of ' + user.login + ' to ' + displayName);
-				user.Name = displayName;
-				return usersClient.updateUserInfo(user.Location, user).then(function(/*xhrResult*/) {
+		};
+		var ensureUserLoggedIn = function() {
+			if (createUser) {
+				var randomSuffix = String(Math.random()).substring(2, 12);
+				var login = 'user' + randomSuffix;
+				var displayName = userInfo.Name;
+				var password = userInfo.Password;
+				var email = 'user@' + randomSuffix;
+				return usersClient.createUser(login, password, email).then(function(user) {
+					debug('user created');
 					return user;
+				}).then(function() {
+					return doLogin(login, password);
+				}).then(function(user) {
+					debug('set display name of ' + user.login + ' to ' + displayName);
+					user.Name = displayName;
+					return usersClient.updateUserInfo(user.Location, user).then(function(/*xhrResult*/) {
+						return user;
+					});
 				});
-			});
+			} else {
+				return doLogin(userInfo.login, userInfo.password);
+			}
 		};
 		// Creates project if necessary, and returns its metadata
 		var ensureProjectExists = function(location, name) {
@@ -89,7 +101,7 @@ define(['require', 'orion/Deferred', 'orion/xhr', 'orion/form', 'orion/URL-shim'
 			});
 		};
 
-		return createUserAndLogin().then(function() {
+		return ensureUserLoggedIn().then(function() {
 			return fileClient.loadWorkspace().then(function(workspace) {
 				console.log('loaded workspace ' + workspace.Location);
 				return ensureProjectExists(workspace.ChildrenLocation, projectName).then(function(project) {
