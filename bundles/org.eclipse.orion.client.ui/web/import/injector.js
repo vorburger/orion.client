@@ -13,35 +13,47 @@ define(['require', 'orion/Deferred', 'orion/xhr', 'orion/form', 'orion/URL-shim'
 		this.fileClient = fileClient;
 		this.usersClient = usersClient;
 	}
-	Injector.prototype.inject = function(user, projectZipData) {
+	Injector.prototype.inject = function(newUser, projectZipData, projectName) {
+		// Log in -- TODO there is no way to login via a service so it's hardcoded :(
+		function doLogin(login, password) {
+			debug('logging in...');
+			return xhr('POST', require.toUrl('login/form'), {
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+					'Orion-Version': '1'
+				},
+				data: form.encodeFormData({
+					login: login,
+					password: password
+				})
+			}).then(function(xhrResult) {
+				return JSON.parse(xhrResult.response);
+			});
+		}
+
+		projectName = projectName || 'Project';
 		var fileClient = this.fileClient;
 		var usersClient = this.usersClient;
 		var createUserAndLogin = function() {
-			var d = new Deferred();
 			var randomSuffix = String(Math.random()).substring(2, 12);
-			var username = user.Name + randomSuffix, password = user.Password, email = user.Email + randomSuffix;
-			usersClient.createUser(username, password, email).then(function(r) {
+			var login = 'user' + randomSuffix;
+			var displayName = newUser.Name;
+			var password = newUser.Password;
+			var email = 'user@' + randomSuffix;
+			// display name
+			return usersClient.createUser(login, password, email).then(function(user) {
 				debug('user created');
-				d.resolve(r);
-			}).then(function(user) {
-				// TODO there is no way to login automatically via a service so it's hardcoded :(
-				debug('logging in...');
-				return xhr('POST', require.toUrl('login/form'), {
-					headers: {
-						'Content-Type': 'application/x-www-form-urlencoded',
-						'Orion-Version': '1'
-					},
-					data: form.encodeFormData({
-						login: username,
-						password: password
-					})
-				});
-			}).then(function(user) {
-				// get logged-in-user
-				// FIXME redundant
 				return user;
+			}).then(function(user) {
+				return doLogin(login, password);
+			}).then(function(user) {
+				// Set display name (must be logged in)
+				debug('set display name of ' + user.login + ' to ' + displayName);
+				user.Name = displayName;
+				return usersClient.updateUserInfo(user.Location, user).then(function(/*xhrResult*/) {
+					return user;
+				});
 			});
-			return d;
 		};
 		// Creates project if necessary, and returns its metadata
 		var ensureProjectExists = function(location, name) {
@@ -80,7 +92,7 @@ define(['require', 'orion/Deferred', 'orion/xhr', 'orion/form', 'orion/URL-shim'
 		return createUserAndLogin().then(function() {
 			return fileClient.loadWorkspace().then(function(workspace) {
 				console.log('loaded workspace ' + workspace.Location);
-				return ensureProjectExists(workspace.ChildrenLocation, 'Code Samples').then(function(project) {
+				return ensureProjectExists(workspace.ChildrenLocation, projectName).then(function(project) {
 					return fileClient.read(project.ChildrenLocation, true).then(function(projectMetadata) {
 						console.log('Unzipping (importing) to ' + projectMetadata.ImportLocation);
 						return uploadZip(projectMetadata.ImportLocation, projectZipData).then(function() {
