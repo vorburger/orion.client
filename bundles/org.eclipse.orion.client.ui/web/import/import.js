@@ -11,8 +11,8 @@
 /*global define exports module document console URL window*/
 
 define(['require', 'orion/bootstrap', 'orion/fileClient', 'orion/URL-shim', 'orion/EventTarget',
-		'import/Injector', 'import/ImportHandler'],
-		function(require, mBootstrap, mFileClient, _, EventTarget, Injector, ImportHandler) {
+		'import/Injector', 'import/ImportHandler', 'domReady!'],
+		function(require, mBootstrap, mFileClient, _, EventTarget, Injector, ImportHandler, __) {
 	function debug(msg) { console.log('Orion: ' + msg); }
 
 	function ServiceProxy() {
@@ -25,37 +25,49 @@ define(['require', 'orion/bootstrap', 'orion/fileClient', 'orion/URL-shim', 'ori
 		var pluginRegistry = core.pluginRegistry;
 		var fileClient = new mFileClient.FileClient(serviceRegistry);
 		var injector = new Injector(fileClient, serviceRegistry);
-		require(['domReady!'], function() {
-			if (window.self === window.top) {
-				throw new Error('Orion: expected to be loaded inside an iframe.');
-			}
 
-			var handler = new ImportHandler(injector, serviceRegistry);
-			handler.connect();
-
-			/* Install a service provider that communicates with external page
-			 * TODO we should use the plugin registry for this -- install the external site as a plugin -- but I dunno how,
-			 * so instead register a proxy service for it.
-			 */
-			var serviceProxy = new ServiceProxy();
-			// Proxy message [type === 'import'] from external page to a dispatchEvent on the serviceProxy.
-			window.addEventListener('message', function(event) {
-				// Probably bad: can't verify origin since we don't know external page's origin
-				if (event.source !== window.top) {
-					return;
-				}
-				debug('got a message: ' + JSON.stringify(event.data));
-				if (event.data && event.data.type === 'import') {
-					serviceProxy.dispatchEvent(event.data);
-				}
-			});
-			serviceProxy.onresponse = function(data) {
-				window.top.postMessage({type: 'response', data: data}, '*'); // bad
-			};
-			serviceRegistry.registerService('orion.core.autoimport', serviceProxy, {});
-
-			debug('service proxy registered. Notifying external page...');
-			window.top.postMessage('serviceRegistered', '*'); //bad
+		// domReady here
+		var opener = window.opener;
+		var status = document.getElementById('status');
+		if (!opener) {
+			status.textContent = 'No import source found.';
+		}
+		document.getElementById('yesButton').addEventListener('click', function() {
+			// TODO -- service proxy crud
+//			window.opener.postMessage({
+//				type: 'payloadRequest'
+//			});
+			// Add listener and such
+			// Service API needs to be rethought -- dispatchEvent 
 		});
+
+//			var handler = new ImportHandler(injector, serviceRegistry);
+//			handler.connect();
+//
+//			/* Install a service provider that communicates with external page
+//			 * TODO we should use the plugin registry for this -- install the external site as a plugin -- but I dunno how,
+//			 * so instead register a proxy service for it.
+//			 */
+//			var serviceProxy = new ServiceProxy();
+//			// Proxy message [type === 'import'] from external page to a dispatchEvent on the serviceProxy.
+//			window.addEventListener('message', function(event) {
+//				// Probably bad: can't verify origin since we don't know external page's origin
+//				if (event.source !== window.top) {
+//					return;
+//				}
+//				debug('got a message: ' + JSON.stringify(event.data));
+//				if (event.data && event.data.type === 'import') {
+//					serviceProxy.dispatchEvent(event.data);
+//				}
+//			});
+//			serviceProxy.onresponse = function(data) {
+//				window.top.postMessage({type: 'response', data: data}, '*'); // bad
+//			};
+//			serviceRegistry.registerService('orion.core.autoimport', serviceProxy, {});
+//
+//			debug('service proxy registered. Notifying external page...');
+//			window.top.postMessage('serviceRegistered', '*'); //bad
+//		});
+
 	});
 });
