@@ -25,12 +25,12 @@ define(['require', 'orion/webui/littlelib'], function(require, lib) {
 	 * @class Bread crumbs show the current position within a resource tree and allow navigation
 	 * to different places in the tree. Unlike the fairy tale, bread crumbs typically don't lead
 	 * to a cottage made of gingerbread. Sorry!
-	 * @name orion.breadcrumbs.BreadCrumbs
+	 * @name orion.breadcrumbs.BreadCrumb
 	 */
 	function BreadCrumbs(options) {
 		this._init(options);		
 	}
-	BreadCrumbs.prototype = /** @lends orion.breadcrumbs.BreadCrumbs.prototype */ {
+	BreadCrumbs.prototype = /** @lends orion.breadcrumbs.BreadCrumb.prototype */ {
 		_init: function(options) {
 			var container = lib.node(options.container);
 			if (!container) { throw "no parent container"; } //$NON-NLS-0$
@@ -44,6 +44,9 @@ define(['require', 'orion/webui/littlelib'], function(require, lib) {
 			this.path = "";
 			this.render();
 		},
+		/**
+		 * @returns {Element}
+		 */
 		getNavigatorWorkspaceRootSegment: function(){
 			if (this._workspaceRootSegmentName) {
 				var seg;
@@ -97,7 +100,7 @@ define(['require', 'orion/webui/littlelib'], function(require, lib) {
 			var firstSegmentName = this._rootSegmentName;
 			if (this._resource) {
 				if (this._resource.Parents) {
-				// walk up the parent chain and insert a crumb for each parent
+					// walk up the parent chain and insert a crumb for each parent
 					var parents = this._resource.Parents;
 					for (var i = parents.length; --i >= 0 ;){
 						seg = document.createElement('a'); //$NON-NLS-0$

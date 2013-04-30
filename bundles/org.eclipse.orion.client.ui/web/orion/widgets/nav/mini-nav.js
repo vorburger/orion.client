@@ -69,11 +69,17 @@ define(['require', 'i18n!orion/edit/nls/messages', 'orion/objects', 'orion/webui
 					return;
 				}
 				var rootPromise = this.fileClient.read(parent.ChildrenLocation, true);
-				var _self = this;
-				return this.commandsRegistered.then(function() {
-					return FileExplorer.prototype.load.call(_self, rootPromise).then(_self.reveal.bind(_self, fileMetadata));
-				});
+				return this.load(rootPromise).then(this.reveal.bind(this, fileMetadata));
 			}
+		},
+		/**
+		 * Override FileExplorer load
+		 */
+		load: function(rootPromise) {
+			var _self = this;
+			return this.commandsRegistered.then(function() {
+				return FileExplorer.prototype.load.call(_self, rootPromise);
+			});
 		},
 		reveal: function(fileMetadata) {
 			var navHandler = this.getNavHandler();

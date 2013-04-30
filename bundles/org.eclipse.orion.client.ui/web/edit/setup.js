@@ -13,14 +13,14 @@
 /*global define eclipse:true orion:true window*/
 
 define(['i18n!orion/edit/nls/messages', 'require', 'orion/Deferred', 'orion/EventTarget', 'orion/webui/littlelib', 'orion/selection', 'orion/status', 'orion/progress', 'orion/dialogs',
-        'orion/commandRegistry', 'orion/favorites', 'orion/extensionCommands', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/globalCommands', 'orion/outliner',
-        'orion/problems', 'orion/editor/contentAssist', 'orion/editorCommands', 'orion/editor/editorFeatures', 'orion/editor/editor', 'orion/syntaxchecker',
+        'orion/commandRegistry', 'orion/favorites', 'orion/extensionCommands', 'orion/fileClient', 'orion/operationsClient', 'orion/searchClient', 'orion/globalCommands', 'orion/breadcrumbs',
+        'orion/outliner', 'orion/problems', 'orion/editor/contentAssist', 'orion/editorCommands', 'orion/editor/editorFeatures', 'orion/editor/editor', 'orion/syntaxchecker',
         'orion/editor/textView', 'orion/editor/textModel',
         'orion/editor/projectionTextModel', 'orion/keyBinding','orion/searchAndReplace/textSearcher',
         'orion/edit/dispatcher', 'orion/contentTypes', 'orion/PageUtil', 'orion/highlight', 'orion/i18nUtil', 'orion/edit/syntaxmodel', 'orion/objects',
         'orion/widgets/themes/ThemePreferences', 'orion/widgets/themes/editor/ThemeData', 'orion/widgets/themes/editor/MiniThemeChooser', 'edit/editorPreferences', 'orion/sidebar'],
 		function(messages, require, Deferred, EventTarget, lib, mSelection, mStatus, mProgress, mDialogs, mCommandRegistry, mFavorites, mExtensionCommands, 
-				mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
+				mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mBreadcrumbs, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
 				mSyntaxchecker, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mSearcher,
 				mDispatcher, mContentTypes, PageUtil, Highlight, i18nUtil, SyntaxModelWirer, objects, mThemePreferences, mThemeData, mThemeChooser, mEditorPreferences, Sidebar) {
 	
@@ -91,6 +91,15 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 			readonly: isReadOnly
 		});
 		return textView;
+	};
+
+	function EditorBreadcrumbFactory() {
+	}
+	EditorBreadcrumbFactory.prototype.createBreadcrumb = function(options) {
+		var breadcrumb = new mBreadcrumbs.BreadCrumbs(options);
+		// HACK THIS HARD
+		// hook up breadcrumb segment click listeners to change the sidebar item.
+		return breadcrumb;
 	};
 
 	var inputManager;
@@ -214,7 +223,9 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 						}
 					},
 					serviceRegistry: serviceRegistry, commandService: commandRegistry,
-					searchService: searcher, fileService: fileClient});
+					searchService: searcher, fileService: fileClient,
+					breadcrumbFactory: new EditorBreadcrumbFactory(this /*input manager*/)
+				});
 				mGlobalCommands.setDirtyIndicator(false);
 				var _self = this;
 				syntaxHighlighter.setup(this._contentType, editor.getTextView(), editor.getAnnotationModel(), title, true)

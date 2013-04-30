@@ -37,7 +37,7 @@ define(['orion/Deferred', 'orion/objects', 'orion/commands', 'orion/outliner', '
 		this.switcherNode = null;
 	}
 	objects.mixin(Sidebar.prototype, /** @lends orion.sidebar.Sidebar.prototype */ {
-		defaultViewMode: "nav",
+		defaultViewMode: "nav", //$NON-NLS-0$
 		show: function() {
 			if (this.created) {
 				return;
@@ -146,6 +146,9 @@ define(['orion/Deferred', 'orion/objects', 'orion/commands', 'orion/outliner', '
 			if (mode && typeof mode.create === "function") {
 				mode.create();
 			}
+		},
+		getActiveViewMode: function() {
+			return this.activeViewMode;
 		},
 		renderViewModeMenu: function() {
 			var switcher = this.switcherNode;

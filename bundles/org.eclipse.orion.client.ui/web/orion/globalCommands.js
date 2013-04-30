@@ -390,9 +390,40 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 			}
 		}
 	}
+
+	/**
+	 * Interface for a factory that creates {@link orion.breadcrumb.BreadCrumb}s.
+	 * @name orion.globalCommands.BreadcrumbFactory
+	 * @class Interface for a factory that creates {@link orion.breadcrumb.BreadCrumb}s.
+	 */
+	/**
+	 * @name orion.globalCommands.BreadcrumbFactory#createBreadcrumb
+	 * @function
+	 * @param {String} container
+	 * @param {String} resource
+	 * @param {String} rootSegmentName
+	 * @param {String} workspaceRootSegmentName
+	 * @param {Function} makeHref
+	 * @returns {orion.breadcrumb.BreadCrumb}
+	 */
+
+	/**
+	 * @name orion.globalCommands.DefaultBreadcrumbFactory
+	 * @class Default breadcrumb factory. This has a {@link #create} method that simply returns a new {@link orion.breadcrumb.BreadCrumb}.
+	 * Subclasses can override this method to customize the breadcrumb object to be returned.
+	 * @borrows {orion.globalCommands.BreadcrumbFactory#createBreadcrumb} as #createBreadcrumb
+	 */
+	function DefaultBreadcrumbFactory() {
+	}
+	DefaultBreadcrumbFactory.prototype.createBreadcrumb = function(options) {
+		return new mBreadcrumbs.BreadCrumbs(options);
+	};
+
 	/**
 	 * Set the target of the page so that common infrastructure (breadcrumbs, related menu, etc.) can be
 	 * added for the page.
+	 * @name orion.globalCommands.setPageTarget
+	 * @function
 	 * @param {Object} options The target options object.
 	 * @param {String} options.task the name of the user task that the page represents.
 	 * @param {Object} options.target the metadata describing the page resource target.  Optional.
@@ -400,15 +431,9 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 	 * parameter is supplied, the target metadata name will be used if a name is not specified in the options.
 	 * @param {String} options.title the title to be used for the page.  Optional.  If not specified, a title
 	 * will be constructed using the task and/or name.
-	 * @param {String} options.breadcrumbRootName the name used for the breadcrumb root.  Optional.  If not
-	 * specified, the breadcrumbTarget, fileService, task, and name will be consulted to form a root name.
-	 * @param {Object} options.breadcrumbTarget the metadata used for the breadcrumb target. Optional.  If not
-	 * specified, options.target is used as the breadcrumb target.
+	 *
 	 * @param {Function} options.makeAlternate a function that can supply alternate metadata for the related
 	 * pages menu if the target does not validate against a contribution.  Optional.
-	 * @param {Function} options.makeBreadcrumbLink a function that will supply a breadcrumb link based on a location
-	 * shown in a breadcrumb.  Optional.  If not specified, and if a target is specified, the breadcrumb link will
-	 * refer to the Navigator.
 	 * @param {Object} options.serviceRegistry the registry to use for obtaining any unspecified services.  Optional.  
 	 * If not specified, then any banner elements requiring Orion services will not be provided.
 	 * @param {Object} options.commandService the commandService used for accessing related page commands.  Optional.
@@ -419,6 +444,15 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 	 * the breadcrumb for multiple file services.  If not specified, there may be reduced support for multiple file 
 	 * implementations.
 	 *
+	 * @param {String} options.breadcrumbRootName the name used for the breadcrumb root.  Optional.  If not
+	 * specified, the breadcrumbTarget, fileService, task, and name will be consulted to form a root name.
+	 * @param {Object} options.breadcrumbTarget the metadata used for the breadcrumb target. Optional.  If not
+	 * specified, options.target is used as the breadcrumb target.
+	 * @param {Function} options.makeBreadcrumbLink a function that will supply a breadcrumb link based on a location
+	 * shown in a breadcrumb.  Optional.  If not specified, and if a target is specified, the breadcrumb link will
+	 * refer to the Navigator.
+	 * @param {orion.globalCommands.BreadCrumbFactory} [breadcrumbFactory=orion.globalCommands.DefaultBreadCrumbFactory]
+	 * Factory for creating the actual {@link orion.breadcrumb.BreadCrumb}. If not provided, a {@link orion.globalCommands.DefaultBreadCrumbFactory} is used.
 	 */
 	function setPageTarget(options) {
 		var name;
@@ -428,6 +462,7 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 			if (options.searchService) {
 				options.searchService.setLocationByMetaData(options.target); //$NON-NLS-0$
 			}
+			// mamacdon breadcrumbFactory
 			if (options.fileService && !options.breadcrumbTarget) {
 				fileSystemRootName = breadcrumbRootName ? breadcrumbRootName + " " : "";  //$NON-NLS-0$
 				fileSystemRootName = fileSystemRootName +  options.fileService.fileServiceName(options.target.Location);
@@ -437,6 +472,7 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 			pageItem = options.target;
 			generateRelatedLinks(options.serviceRegistry, options.target, exclusions, options.commandService, options.makeAlternate);
 		} else {
+			// mamacdon breadcrumb factory
 			if (!options.breadcrumbTarget) {
 				breadcrumbRootName = breadcrumbRootName || options.task || options.name;
 			}
@@ -452,7 +488,8 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 		} 
 		window.document.title = title;
 		lib.empty(lib.node("location")); //$NON-NLS-0$
-		new mBreadcrumbs.BreadCrumbs({
+		var breadcrumbFactory = options.breadcrumbFactory || DefaultBreadcrumbFactory;
+		breadcrumbFactory.createBreadcrumb({
 			container: "location",  //$NON-NLS-0$
 			resource: options.breadcrumbTarget || options.target,
 			rootSegmentName: breadcrumbRootName,
@@ -1093,6 +1130,7 @@ define(['i18n!orion/nls/messages', 'require', 'orion/commonHTMLFragments', 'orio
 		setPageTarget: setPageTarget,
 		setDirtyIndicator: setDirtyIndicator,
 		setPageCommandExclusions: setPageCommandExclusions,
-		notifyAuthenticationSite: notifyAuthenticationSite
+		notifyAuthenticationSite: notifyAuthenticationSite,
+		DefaultBreadcrumbFactory: DefaultBreadcrumbFactory
 	};
 });
