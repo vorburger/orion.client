@@ -11,8 +11,8 @@
 /*global define window */
 /*jslint regexp:false browser:true forin:true*/
 
-define(['i18n!orion/navigate/nls/messages', 'orion/Deferred', 'orion/webui/littlelib', 'orion/explorers/explorer', 'orion/explorers/navigationUtils', 'orion/extensionCommands', 'orion/contentTypes'],
-		function(messages, Deferred, lib, mExplorer, mNavUtils, mExtensionCommands){
+define(['i18n!orion/navigate/nls/messages', 'orion/Deferred', 'orion/webui/littlelib', 'orion/explorers/explorer', 'orion/explorers/navigationUtils', 'orion/extensionCommands', 'orion/contentTypes', 'orion/URITemplate'],
+		function(messages, Deferred, lib, mExplorer, mNavUtils, mExtensionCommands, mContentTypes, URITemplate){
 		
 	/* Internal */
 	function isImage(contentType) {
@@ -80,7 +80,9 @@ define(['i18n!orion/navigate/nls/messages', 'orion/Deferred', 'orion/webui/littl
 		if (item.Directory) {
 			link = document.createElement("a"); //$NON-NLS-0$
 			link.className = "navlinkonpage"; //$NON-NLS-0$
-			link.href = folderPageURL + "#" + item.ChildrenLocation; //$NON-NLS-0$
+			link.href = new URITemplate(folderPageURL + "#{,Resource,params*}").expand({ //$NON-NLS-0$
+				Resource: item.ChildrenLocation
+			});
 			link.appendChild(document.createTextNode(item.Name));
 		} else {
 			var i;			
