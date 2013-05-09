@@ -188,8 +188,8 @@ define(['require', 'orion/util', 'orion/webui/littlelib', 'orion/webui/dropdown'
 		// bind name to fragment variable
 		lib.processTextNodes(buttonFragment, {ButtonText: name});
 		parent.appendChild(buttonFragment);
-		var newMenu = parent.lastChild;
-		var menuButton = newMenu.previousSibling;
+		var newMenu = lib.$(".dropdownMenu", parent); //$NON-NLS-0$
+		var menuButton = lib.$(".dropdownTrigger", parent); //$NON-NLS-0$
 		if (buttonCss) {
 			menuButton.classList.add(buttonCss);
 			menuButton.textContent = '';

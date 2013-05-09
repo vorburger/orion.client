@@ -834,9 +834,9 @@ define(['require', 'orion/commands', 'orion/uiUtils', 'orion/PageUtil', 'orion/w
 				// bind name to fragment variable
 				lib.processTextNodes(buttonFragment, {ButtonText: name});
 				parent.appendChild(buttonFragment);
-				destroyButton = parent.lastChild;
-				newMenu = destroyButton.lastChild;
-				menuButton = newMenu.previousSibling;
+				destroyButton = parent.lastChild; // last node from our template
+				newMenu = lib.$(".dropdownMenu", destroyButton); //$NON-NLS-0$
+				menuButton = lib.$(".dropdownTrigger", destroyButton); //$NON-NLS-0$
 				menuButton.dropdown = new mDropdown.Dropdown({dropdown: newMenu, populate: populateFunction});
 				newMenu.dropdown = menuButton.dropdown;
 			} else {
@@ -849,7 +849,6 @@ define(['require', 'orion/commands', 'orion/uiUtils', 'orion/PageUtil', 'orion/w
 				menuButton = created.menuButton;
 				newMenu = created.menu;
 			}
-			
 			return {menuButton: menuButton, menu: newMenu, dropdown: menuButton.dropdown, destroyButton: destroyButton};
 		},
 		
