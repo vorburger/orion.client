@@ -6,6 +6,8 @@
 
 @import "../css/sections.css";
 
+@import "../css/customide.css";
+
 .userInput {
 	min-width: 200px;
 }

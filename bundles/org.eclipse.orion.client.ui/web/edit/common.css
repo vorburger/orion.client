@@ -8,6 +8,8 @@
 
 @import "../orion/editor/editor.css";
 
+@import "../css/customide.css";
+
 .outlineExplorer {
 	overflow-y: none;
 }

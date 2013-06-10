@@ -6,6 +6,8 @@
 
 @import "css/user.css";
 
+@import "../css/customide.css";
+
 th {
 	text-align: left;
 }
