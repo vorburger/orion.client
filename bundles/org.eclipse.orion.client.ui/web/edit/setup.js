@@ -97,7 +97,6 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 
 	var editor, inputManager, settings;
 	function renderToolbars(metadata) {
-		if (!metadata) { return; }
 		var toolbar = lib.node("pageActions"); //$NON-NLS-0$
 		if (toolbar) {
 			// now add any "orion.navigate.command" commands that should be shown in non-nav pages.
@@ -267,6 +266,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 		});
 		inputManager.addEventListener("InputChanged", function(evt) { //$NON-NLS-0$
 			if (evt.input === null || typeof evt.input === "undefined") {//$NON-NLS-0$
+				renderToolbars(null);
 				return;
 			}
 			var metadata = evt.metadata;
@@ -381,12 +381,13 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 			// inform the sidebar
 			sidebarNavInputManager.processHash(window.location.hash);
 		});
-		inputManager.setInput(window.location.hash);
-		sidebarNavInputManager.processHash(window.location.hash);
 		
 		//mGlobalCommands.setPageCommandExclusions(["orion.editFromMetadata"]); //$NON-NLS-1$ //$NON-NLS-0$
 		mGlobalCommands.generateBanner("orion-editor", serviceRegistry, commandRegistry, preferences, searcher, editor, editor); //$NON-NLS-0$
-	
+
+		inputManager.setInput(window.location.hash);
+		sidebarNavInputManager.processHash(window.location.hash);
+
 		// Editor Settings
 		updateSettings(settings);
 
