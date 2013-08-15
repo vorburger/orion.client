@@ -103,6 +103,14 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 			return this._annotationStyler;
 		},
 		/**
+		 * Returns the content assist of the editor. 
+		 *
+		 * @returns {orion.editor.LineNumberRuler}
+		 */
+		getContentAssist: function() {
+			return this._contentAssist;
+		},
+		/**
 		 * Returns the folding ruler of the editor. 
 		 *
 		 * @returns {orion.editor.FoldingRuler}
@@ -153,7 +161,14 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 		getTitle: function() {
 			return this._title;
 		},
-		
+		/**
+		 * Returns the editor undo stack. 
+		 *
+		 * @returns {orion.editor.UndoStack} the editor undo stack.
+		 */
+		getUndoStack: function() {
+			return this._undoStack;
+		},
 		/**
 		 * Returns the editor's key modes.
 		 *
@@ -175,8 +190,8 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 		 *
 		 * @param {Boolean} visible <code>true</code> to show ruler, <code>false</code> otherwise
 		 */
-		setAnnotationRulerVisible: function(visible) {
-			if (this._annotationRulerVisible === visible) { return; }
+		setAnnotationRulerVisible: function(visible, force) {
+			if (this._annotationRulerVisible === visible && !force) { return; }
 			this._annotationRulerVisible = visible;
 			if (!this._annotationRuler) { return; }
 			var textView = this._textView;
@@ -191,14 +206,14 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 		 *
 		 * @param {Boolean} visible <code>true</code> to show ruler, <code>false</code> otherwise
 		 */
-		setFoldingRulerVisible: function(visible) {
-			if (this._foldingRulerVisible === visible) { return; }
+		setFoldingRulerVisible: function(visible, force) {
+			if (this._foldingRulerVisible === visible && !force) { return; }
 			this._foldingRulerVisible = visible;
 			if (!this._foldingRuler) { return; }
 			var textView = this._textView;
 			if (!textView.getModel().getBaseModel) { return; }
 			if (visible) {
-				textView.addRuler(this._foldingRuler, 100);
+				textView.addRuler(this._foldingRuler);
 			} else {
 				textView.removeRuler(this._foldingRuler);
 			}
@@ -218,13 +233,13 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 		 *
 		 * @param {Boolean} visible <code>true</code> to show ruler, <code>false</code> otherwise
 		 */
-		setLineNumberRulerVisible: function(visible) {
-			if (this._lineNumberRulerVisible === visible) { return; }
+		setLineNumberRulerVisible: function(visible, force) {
+			if (this._lineNumberRulerVisible === visible && !force) { return; }
 			this._lineNumberRulerVisible = visible;
 			if (!this._lineNumberRuler) { return; }
 			var textView = this._textView;
 			if (visible) {
-				textView.addRuler(this._lineNumberRuler, 1);
+				textView.addRuler(this._lineNumberRuler, !this._annotationRulerVisible ? 0 : 1);
 			} else {
 				textView.removeRuler(this._lineNumberRuler);
 			}
@@ -234,8 +249,8 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 		 *
 		 * @param {Boolean} visible <code>true</code> to show ruler, <code>false</code> otherwise
 		 */
-		setOverviewRulerVisible: function(visible) {
-			if (this._overviewRulerVisible === visible) { return; }
+		setOverviewRulerVisible: function(visible, force) {
+			if (this._overviewRulerVisible === visible && !force) { return; }
 			this._overviewRulerVisible = visible;
 			if (!this._overviewRuler) { return; }
 			var textView = this._textView;
@@ -321,13 +336,6 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 			textView.setText(text, start, end);
 		},
 		
-		/**
-		 * @deprecated use #setFoldingRulerVisible
-		 */
-		setFoldingEnabled: function(enabled) {
-			this.setFoldingRulerVisible(enabled);
-		},
-		
 		setSelection: function(start, end, show, callback) {
 			var textView = this._textView;
 			var model = textView.getModel();
@@ -407,7 +415,8 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 		_highlightCurrentLine: function(newSelection, oldSelection) {
 			var annotationModel = this._annotationModel;
 			if (!annotationModel) { return; }
-			var textView = this._textView;	
+			var textView = this._textView;
+			if (textView.getOptions("singleMode")) { return; } //$NON-NLS-0$
 			var model = textView.getModel();
 			var oldLineIndex = oldSelection ? model.getLineAtOffset(oldSelection.start) : -1;
 			var lineIndex = model.getLineAtOffset(newSelection.start);
@@ -490,7 +499,7 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 				onScroll: function(e) {
 					var tooltip = mTooltip.Tooltip.getTooltip(textView);
 					if (!tooltip) { return; }
-					tooltip.setTarget(null);
+					tooltip.setTarget(null, 0, 0);
 				},
 				onSelection: function(e) {
 					self._updateCursorStatus();
@@ -580,7 +589,7 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 					ruler.addAnnotationType(mAnnotations.AnnotationType.ANNOTATION_TASK);
 					ruler.addAnnotationType(mAnnotations.AnnotationType.ANNOTATION_BOOKMARK);
 				}
-				this.setAnnotationRulerVisible(true);
+				this.setAnnotationRulerVisible(this._annotationRulerVisible || this._annotationRulerVisible === undefined, true);
 					
 				ruler = this._overviewRuler = rulers.overviewRuler;
 				if (ruler) {
@@ -596,19 +605,19 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 					ruler.addAnnotationType(mAnnotations.AnnotationType.ANNOTATION_READ_OCCURRENCE);
 					ruler.addAnnotationType(mAnnotations.AnnotationType.ANNOTATION_WRITE_OCCURRENCE);
 				}
-				this.setOverviewRulerVisible(true);
+				this.setOverviewRulerVisible(this._overviewRulerVisible || this._overviewRulerVisible === undefined, true);
 			}
 			
 			if (this._lineNumberRulerFactory) {
 				this._lineNumberRuler = this._lineNumberRulerFactory.createLineNumberRuler(this._annotationModel);
 				this._lineNumberRuler.onDblClick = addRemoveBookmark;
-				this.setLineNumberRulerVisible(true);
+				this.setLineNumberRulerVisible(this._lineNumberRulerVisible || this._lineNumberRulerVisible === undefined, true);
 			}
 			
 			if (this._foldingRulerFactory) {
 				this._foldingRuler = this._foldingRulerFactory.createFoldingRuler(this._annotationModel);
 				this._foldingRuler.addAnnotationType(mAnnotations.AnnotationType.ANNOTATION_FOLDING);
-				this.setFoldingRulerVisible(false);
+				this.setFoldingRulerVisible(this._foldingRulerVisible || this._foldingRulerVisible === undefined, true);
 			}
 			
 			var textViewInstalledEvent = {
@@ -669,8 +678,13 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 			var annotations = annotationModel.getAnnotations(0, model.getCharCount()), annotation;
 			while (annotations.hasNext()) {
 				annotation = annotations.next();
-				if (annotation.type === mAnnotations.AnnotationType.ANNOTATION_ERROR || annotation.type === mAnnotations.AnnotationType.ANNOTATION_WARNING) {
-					remove.push(annotation);
+				switch (annotation.type) {
+					case mAnnotations.AnnotationType.ANNOTATION_ERROR:
+					case mAnnotations.AnnotationType.ANNOTATION_WARNING:
+					case mAnnotations.AnnotationType.ANNOTATION_TASK:
+						if (annotation.creatorID === this) {
+							remove.push(annotation);
+						}
 				}
 			}
 			if (problems) { 
@@ -689,9 +703,15 @@ define("orion/editor/editor", ['i18n!orion/editor/nls/messages', 'orion/keyBindi
 							start = problem.start;
 							end = problem.end;
 						}
-						var severity = problem.severity;
-						var type = severity === "error" ? mAnnotations.AnnotationType.ANNOTATION_ERROR : mAnnotations.AnnotationType.ANNOTATION_WARNING; //$NON-NLS-0$
+						var type;
+						switch (problem.severity) {
+							case "error": type = mAnnotations.AnnotationType.ANNOTATION_ERROR; break;//$NON-NLS-0$
+							case "warning": type = mAnnotations.AnnotationType.ANNOTATION_WARNING; break;//$NON-NLS-0$
+							case "task": type = mAnnotations.AnnotationType.ANNOTATION_TASK; break;//$NON-NLS-0$
+							default: continue;
+						}
 						annotation = mAnnotations.AnnotationType.createAnnotation(type, start, end, problem.description);
+						annotation.creatorID = this;
 						add.push(annotation);
 					}
 				}

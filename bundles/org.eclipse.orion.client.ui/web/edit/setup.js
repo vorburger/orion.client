@@ -47,7 +47,7 @@ define([
 	'orion/i18nUtil',
 	'orion/widgets/themes/ThemePreferences',
 	'orion/widgets/themes/editor/ThemeData',
-	'orion/widgets/themes/editor/LocalEditorSettings',
+	'orion/widgets/settings/EditorSettings',
 	'edit/editorPreferences',
 	'orion/URITemplate',
 	'orion/sidebar',
@@ -56,13 +56,12 @@ define([
 ], function(messages, require, EventTarget, lib, mSelection, mStatus, mProgress, mDialogs, mCommandRegistry, mExtensionCommands, 
 			mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
 			mSyntaxchecker, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mEmacs, mVI, mSearcher,
-			mContentTypes, PageUtil, mInputManager, i18nUtil, mThemePreferences, mThemeData, LocalEditorSettings, mEditorPreferences, URITemplate, Sidebar,
+			mContentTypes, PageUtil, mInputManager, i18nUtil, mThemePreferences, mThemeData, EditorSettings, mEditorPreferences, URITemplate, Sidebar,
 			mTooltip, DropDownMenu) {
 
 var exports = exports || {};
 	
 exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
-	var document = window.document;
 	var selection;
 	var commandRegistry;
 	var statusReportingService;
@@ -152,30 +151,36 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 	var renderLocalEditorSettings = function(settings) {
 		var navDropDownTrigger = lib.node("settingsAction"); //$NON-NLS-0$
 
-		new mTooltip.Tooltip({
+		var tooltip = new mTooltip.Tooltip({
 			node: navDropDownTrigger,
 			text: messages['LocalEditorSettings'],
 			position: ["below", "left"] //$NON-NLS-1$ //$NON-NLS-0$
 		});
 
-		var navDropDown = new DropDownMenu('settingsTab', 'settingsAction');
-		navDropDown.updateContent = settings.updateContent.bind(settings);
+		var navDropDown = new DropDownMenu('settingsTab', 'settingsAction'); //$NON-NLS-1$ //$NON-NLS-0$
+		navDropDown.updateContent = settings.show.bind(settings);
+		navDropDown.__tooltip = tooltip;
 	};
 
 	var updateSettings = function(prefs) {
 		settings = prefs;
-		inputManager.setAutoLoadEnabled(prefs.autoLoadEnabled);
-		inputManager.setAutoSaveTimeout(prefs.autoSaveEnabled ? prefs.autoSaveTimeout : -1);
+		inputManager.setAutoLoadEnabled(prefs.autoLoad);
+		inputManager.setAutoSaveTimeout(prefs.autoSave ? prefs.autoSaveTimeout : -1);
+		inputManager.setSaveDiffsEnabled(prefs.saveDiffs);
 		var textView = editor.getTextView();
 		if (textView) {
 			updateKeyMode(textView);
 			var options = {
 				tabSize: settings.tabSize || 4,
 				expandTab: settings.expandTab,
-				scrollAnimation: settings.scrollAnimationEnabled ? settings.scrollAnimation : 0
+				scrollAnimation: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0
 			};
 			textView.setOptions(options);
 		}
+		editor.setAnnotationRulerVisible(prefs.annotationRuler);
+		editor.setLineNumberRulerVisible(prefs.lineNumberRuler);
+		editor.setFoldingRulerVisible(prefs.foldingRuler);
+		editor.setOverviewRulerVisible(prefs.overviewRuler);
 		renderToolbars(inputManager.getFileMetadata());
 	};
 	var editorPreferences = new mEditorPreferences.EditorPreferences (preferences, function (prefs) {
@@ -187,7 +192,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 	});
 	var themePreferences = new mThemePreferences.ThemePreferences(preferences, new mThemeData.ThemeData());
 	themePreferences.apply();
-	var localSettings = new LocalEditorSettings( themePreferences, editorPreferences );
+	var localSettings = new EditorSettings({local: true, themePreferences: themePreferences, preferences: editorPreferences});
 	
 	editorPreferences.getPrefs(function(prefs) {
 		settings = prefs;
@@ -199,7 +204,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 				wrappable: true,
 				tabSize: settings.tabSize || 4,
 				expandTab: settings.expandTab,
-				scrollAnimation: settings.scrollAnimationEnabled ? settings.scrollAnimation : 0,
+				scrollAnimation: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0,
 				readonly: isReadOnly
 			});
 			return textView;
@@ -353,7 +358,7 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 			var root = evt.root;
 			// update the navigate param, if it's present, or if this was a user action
 			var pageParams = PageUtil.matchResourceParameters(location.hash);
-			if (evt.force || Object.hasOwnProperty.call(pageParams, "navigate")) {//$NON-NLS-0$
+			if (evt.force || Object.prototype.hasOwnProperty.call(pageParams, "navigate")) {//$NON-NLS-0$
 				var params = {};
 				params.resource = pageParams.resource || ""; //$NON-NLS-0$
 				params.params = { navigate: root.Path };

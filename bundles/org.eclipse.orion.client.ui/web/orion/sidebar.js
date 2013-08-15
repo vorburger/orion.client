@@ -2,8 +2,9 @@
 /*jslint browser:true sub:true*/
 define(['orion/Deferred', 'orion/objects', 'orion/commands', 'orion/outliner', 'orion/webui/littlelib',
 		'orion/widgets/nav/mini-nav',
+		'orion/widgets/nav/project-nav',
 		'i18n!orion/edit/nls/messages'],
-		function(Deferred, objects, mCommands, mOutliner, lib, MiniNavViewMode, messages) {
+		function(Deferred, objects, mCommands, mOutliner, lib, MiniNavViewMode, ProjectNavViewMode, messages) {
 	/**
 	 * @name orion.sidebar.Sidebar
 	 * @class Sidebar that appears alongside an {@link orion.editor.Editor} in the Orion IDE.
@@ -93,6 +94,21 @@ define(['orion/Deferred', 'orion/objects', 'orion/commands', 'orion/outliner', '
 				serviceRegistry: serviceRegistry,
 				toolbarNode: modeContributionToolbar
 			}));
+			
+			//TODO remove check for the orion.projects when projects are delivered
+			if(this.serviceRegistry.getServiceReferences("orion.projects").length>0){
+				this.addViewMode("project", new ProjectNavViewMode({ //$NON-NLS-0$
+					commandRegistry: commandRegistry,
+					contentTypeRegistry: contentTypeRegistry,
+					fileClient: fileClient,
+					editorInputManager: editorInputManager,
+					parentNode: parentNode,
+					sidebarNavInputManager: this.sidebarNavInputManager,
+					serviceRegistry: serviceRegistry,
+					toolbarNode: modeContributionToolbar
+				}));
+				this.renderViewModeMenu();
+			}
 
 			// Outliner is responsible for adding its view mode(s) to this sidebar
 			this.outliner = new mOutliner.Outliner({
@@ -130,7 +146,7 @@ define(['orion/Deferred', 'orion/objects', 'orion/commands', 'orion/outliner', '
 			if (!mode || typeof mode !== "object") { //$NON-NLS-0$
 				throw new Error("Invalid mode: "  + mode);
 			}
-			if (!Object.hasOwnProperty.call(this.viewModes, id)) {
+			if (!Object.prototype.hasOwnProperty.call(this.viewModes, id)) {
 				this.viewModes[id] = mode;
 			}
 		},
@@ -142,7 +158,7 @@ define(['orion/Deferred', 'orion/objects', 'orion/commands', 'orion/outliner', '
 			delete this.viewModes[id];
 		},
 		getViewMode: function(id) {
-			if (Object.hasOwnProperty.call(this.viewModes, id)) {
+			if (Object.prototype.hasOwnProperty.call(this.viewModes, id)) {
 				return this.viewModes[id];
 			}
 			return null;

@@ -86,8 +86,8 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 			});
 			
 			var updateCommand = new mCommands.Command({
-				name: messages["Apply"],
-				tooltip: messages["Apply Theme"],
+				name: messages["Update"],
+				tooltip: messages["Update Theme"],
 				id: "orion.applytheme", //$NON-NLS-0$
 				callback: function(data){
 					this.apply(data.items);
@@ -147,20 +147,23 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 		
 		ThemeBuilder.prototype.template =	'<div id="themeContainer">' +
 												'<canvas id="orionui" width="800" height="380""></canvas>' +
-												'<div id="sizecontainer" style="display:none;">' +
-													'<span class="settingsLabel">Font Size:</span>' + 
-													'<div id="fontsizepicker" class="fontsizepicker"></div>' +
-												'</div>' +
 												'<div id="pickercontainer" style="display:block;">' +
 													'<span class="settingsLabel">' + 
-														messages["Theme:"] + 
-													'</span>' + 
+														messages["Theme"] + 
+													':</span>' + 
 													'<div id="themepicker" class="themepicker"></div>' +
 												'</div>' +
-												'<br>' +
 												'<div id="savecontainer" style="display:none;">' +
-													'<span class="settingsLabel">New theme name:</span>' + 
+													'<span class="settingsLabel">' + 
+														messages["New Theme Name"] + 
+													':</span>' + 
 													'<div id="themesaver" class="themesaver"></div>' +
+												'</div>' +
+												'<div id="sizecontainer">' +
+													'<span class="settingsLabel">' +
+														messages["Font Size"] +
+													':</span>' + 
+													'<div id="fontsizepicker" class="fontsizepicker"></div>' +
 												'</div>' +
 												'<div id="stringcontainer" style="position:relative;left:400px;top:-140px;display:none;">' +
 														'<span>' +
@@ -694,6 +697,9 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 				}
 			
 				this.preferences.setTheme(themename, styles);
+				if (this.settings.fontSize) {
+					this.preferences.setFontSize( this.settings.fontSize.value );
+				}
 				lib.node( 'savecontainer' ).style.display = 'none';
 				lib.node( 'pickercontainer' ).style.display = '';
 				this.updateThemePicker(themename, styles);
@@ -752,8 +758,7 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 		ThemeBuilder.prototype.select = select;
 		
 		function selectFontSize( size ){
-			this.settings.fontSize = { value:size };	
-			this.preferences.setFontSize( size );
+			this.settings.fontSize = { value:size };
 		}
 		
 		ThemeBuilder.prototype.selectFontSize = selectFontSize;
@@ -777,7 +782,8 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 			this.sizeSelect.destroy();
 			var newdiv = document.createElement('div');
 			newdiv.id = 'fontsizepicker';
-			document.getElementById( 'sizecontainer' ).appendChild(newdiv);
+			var container = document.getElementById( 'sizecontainer' );
+			container.appendChild(newdiv);
 			this.sizeSelect = new Select( {options:options}, newdiv );
 			this.sizeSelect.setStorageItem = this.selectFontSize.bind(this);
 			this.sizeSelect.show();
@@ -789,6 +795,7 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 		
 			var currentFont = themeStyles.style.fontSize;
 			
+			var container = document.getElementById( 'sizecontainer' );
 			var picker = document.getElementById( 'fontsizepicker' );
 	
 			var options = [];
@@ -907,15 +914,7 @@ define(['i18n!orion/settings/nls/messages', 'orion/commands', 'orion/commandRegi
 			
 			element.id = this.colorFieldId;
 			
-			if( this.themeData.fontSettable ){
-			
-				/* Can enable font selection on the editor page by
-				   uncommenting this line ... choosing not to for 
-				   now because we can do it in page, and I feel this
-				   complicates the user interface 
-				   
-				lib.node( 'sizecontainer' ).style.display = '';   */
-			}
+			lib.node( 'sizecontainer' ).style.display = this.themeData.fontSettable ? "block" : "none";
 	
 			this.drawOutlineData(data);
 			this.preferences.getTheme(function(themeStyles) {

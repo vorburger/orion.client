@@ -153,6 +153,7 @@ define('orion/editor/edit', [ //$NON-NLS-0$
 	 * @property {Boolean} [expandTab=false] whether or not the tab key inserts white spaces.
 	 * @property {String} [themeClass] the CSS class for the view theming.
 	 * @property {Number} [tabSize=4] The number of spaces in a tab.
+	 * @property {Boolean} [singleMode=false] whether or not the editor is in single line mode.
 	 * @property {Boolean} [wrapMode=false] whether or not the view wraps lines.
 	 * @property {Function} [statusReporter] a status reporter.
 	 * @property {String} [title=""] the editor title.
@@ -162,6 +163,7 @@ define('orion/editor/edit', [ //$NON-NLS-0$
 	 * @property {Boolean} [showAnnotationRuler=true] whether or not the annotation ruler is shown.
 	 * @property {Boolean} [showOverviewRuler=true] whether or not the overview ruler is shown.
 	 * @property {Boolean} [showFoldingRuler=true] whether or not the folding ruler is shown.
+	 * @property {Number} [firstLineIndex=1] the line index displayed for the first line of text.
 	 */
 	/**
 	 * Creates an editor instance configured with the given options.
@@ -214,6 +216,7 @@ define('orion/editor/edit', [ //$NON-NLS-0$
 				fullSelection: options.fullSelection,
 				tabMode: options.tabMode,
 				expandTab: options.expandTab,
+				singleMode: options.singleMode,
 				themeClass: options.themeClass,
 				theme: options.theme,
 				wrapMode: options.wrapMode
@@ -272,6 +275,12 @@ define('orion/editor/edit', [ //$NON-NLS-0$
 			statusReporter: options.statusReporter,
 			domNode: parent
 		});
+		editor.addEventListener("TextViewInstalled", function() { //$NON-NLS-0$
+			var ruler = editor.getLineNumberRuler();
+			if (ruler && options.firstLineIndex !== undefined) {
+				ruler.setFirstLine(options.firstLineIndex);
+			}
+		});
 		
 		var contents = options.contents;
 		if (contents === undefined) {
@@ -288,12 +297,15 @@ define('orion/editor/edit', [ //$NON-NLS-0$
 		syntaxHighlighter.highlight(options.lang, editor);
 		if (contentAssist) {
 			var cssContentAssistProvider = new mCSSContentAssist.CssContentAssistProvider();
+			var htmlContentAssistProvider = new mHtmlContentAssist.HTMLContentAssistProvider();
 			var jsTemplateContentAssistProvider = new mJSContentAssist.JSTemplateContentAssistProvider();
 			contentAssist.addEventListener("Activating", function() { //$NON-NLS-0$
 				if (/css$/.test(options.lang)) {
 					contentAssist.setProviders([cssContentAssistProvider]);
 				} else if (/js$/.test(options.lang)) {
 					contentAssist.setProviders([jsTemplateContentAssistProvider]);
+				} else if (/html$/.test(options.lang)) {
+					contentAssist.setProviders([htmlContentAssistProvider]);
 				}
 			});
 		}

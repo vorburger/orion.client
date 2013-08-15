@@ -109,9 +109,10 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 	 * @class Provides operations on files, folders, and projects.
 	 * @name FileServiceImpl
 	 */
-	function FileServiceImpl(fileBase, workspaceBase) {
+	function FileServiceImpl(fileBase, workspaceBase, projectBase) {
 		this.fileBase = fileBase;
 		this.workspaceBase = workspaceBase;
+		this.projectBase = projectBase;
 		this.makeAbsolute = workspaceBase && workspaceBase.indexOf("://") !== -1;
 	}
 	
@@ -227,6 +228,49 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 				return result;
 			}.bind(this));
 		},
+		readProject: function(location) {
+			var url = new URL(location, window.location);
+			return xhr("GET", url.href, {
+				timeout: 15000,
+				headers: { "Orion-Version": "1" },
+				log: false
+			}).then(function(result) {
+					return result.response ? JSON.parse(result.response) : null;
+			}).then(function(result) {
+				if (this.makeAbsolute) {
+					_normalizeLocations(result);
+				}
+				return result;
+			}.bind(this));
+		},
+		
+		/**
+		 * Initializes a project in a folder.
+		 * @param {String} contentLocation The location of the parent folder
+		 * @return {Object} JSON representation of the created folder
+		 */
+		initProject: function(contentLocation) {
+			return xhr("POST", this.projectBase, {
+				headers: {
+					"Orion-Version": "1",
+					"X-Create-Options" : "no-overwrite",
+					"Slug": contentLocation,
+					"Content-Type": "application/json;charset=UTF-8"
+				},
+				data: JSON.stringify({
+					"ContentLocation": contentLocation
+				}),
+				timeout: 15000
+			}).then(function(result) {
+				return result.response ? JSON.parse(result.response) : null;
+			}).then(function(result) {
+				if (this.makeAbsolute) {
+					_normalizeLocations(result);
+				}
+				return result;
+			}.bind(this));
+		},
+		
 		/**
 		 * Adds a project to a workspace.
 		 * @param {String} url The workspace location
@@ -265,6 +309,35 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 				return result;
 			}.bind(this));
 		},
+		
+		/**
+		* @param {String} location Project location
+		* @param {Object} dependency The JSON representation of the depenency
+		* @param {String} dependency.Type Type of the depenency (i.e. "file")
+		* @param {String} dependency.Name String description of the dependency (i.e. folder name)
+		* @param {String} dependency.Location Location of the depenency understood by the plugin of given type
+		*/
+		addProjectDepenency: function(location, depenency) {
+			return xhr("PUT", location, {
+				headers: {
+					"Orion-Version": "1",
+					"X-Create-Options" : "no-overwrite",
+					"Content-Type": "application/json;charset=UTF-8"
+				},
+				data: JSON.stringify({
+					"Depenency": depenency
+				}),
+				timeout: 15000
+			}).then(function(result) {
+				return result.response ? JSON.parse(result.response) : null;
+			}).then(function(result) {
+				if (this.makeAbsolute) {
+					_normalizeLocations(result);
+				}
+				return result;
+			}.bind(this));
+		},
+		
 		/**
 		 * Creates a folder.
 		 * @param {String} parentLocation The location of the parent folder
@@ -404,7 +477,7 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 		 *   otherwise file contents are returned
 		 * @return A deferred that will be provided with the contents or metadata when available
 		 */
-		read: function(location, isMetadata) {
+		read: function(location, isMetadata, acceptPatch) {
 			var url = new URL(location, window.location);
 			if (isMetadata) {
 				url.query.set("parts", "meta");
@@ -417,11 +490,15 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 				if (isMetadata) {
 					return result.response ? JSON.parse(result.response) : null;
 				} else {
-					return result.response;
+					if (acceptPatch) {
+						return {result: result.response, acceptPatch: result.xhr.getResponseHeader("Accept-Patch")};
+					} else {
+						return result.response;
+					}
 				}
 			}).then(function(result) {
 				if (this.makeAbsolute) {
-					_normalizeLocations(result);
+					_normalizeLocations(acceptPatch ? result.result : result);
 				}
 				return result;
 			}.bind(this));
@@ -435,6 +512,8 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 		 * @return A deferred for chaining events after the write completes with new metadata object
 		 */		
 		write: function(location, contents, args) {
+			var url = new URL(location, window.location);
+			
 			var headerData = {
 					"Orion-Version": "1",
 					"Content-Type": "text/plain;charset=UTF-8"
@@ -450,17 +529,22 @@ define(["orion/Deferred", "orion/xhr", "orion/URL-shim", "orion/operation"], fun
 			};
 						
 			// check if we have raw contents or something else
+			var method = "PUT";
 			if (typeof contents !== "string") {
 				// look for remote content
 				if (contents.sourceLocation) {
 					options.query = {source: contents.sourceLocation};
 					options.data = null;
+				} else if (contents.diff) {
+					method = "POST";
+					headerData["X-HTTP-Method-Override"] = "PATCH";
+					options.data = JSON.stringify(options.data);
 				} else {
 					// assume we are putting metadata
-					options.query = {parts: "meta"};
+					url.query.set("parts", "meta");
 				}
 			}
-			return xhr("PUT", location, options).then(function(result) {
+			return xhr(method, url.href, options).then(function(result) {
 				return result.response ? JSON.parse(result.response) : null;
 			}).then(function(result) {
 				if (this.makeAbsolute) {
