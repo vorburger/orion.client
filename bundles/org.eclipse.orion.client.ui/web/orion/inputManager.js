@@ -112,6 +112,7 @@ define([
 		this.selection = options.selection;
 		this.syntaxHighlighter = new Highlight.SyntaxHighlighter(this.serviceRegistry);
 		this.syntaxModelWirer = new SyntaxModelWirer(this.serviceRegistry);
+		this.textViewFactory = options.textViewFactory;
 		this._input = this._title = "";
 		this.dispatcher = null;
 		this._unsavedChanges = [];
@@ -375,7 +376,11 @@ define([
 			}
 			var editor = this.getEditor();
 			if (!editor.getTextView()) {
-				editor.installTextView();
+				if(this.textViewFactory){
+					editor.installTextView(this.textViewFactory.getViewType(this._contentType));
+				} else {
+					editor.installTextView();
+				}
 				editor.getTextView().addEventListener("Focus", function(e) { //$NON-NLS-0$
 					// If there was an error while auto saving, auto save is temporarily disabled and
 					// we retry saving every time the editor gets focus
@@ -406,6 +411,11 @@ define([
 					}
 					this._unsavedChanges.push({start:start, end:end, text:e.text});	
 				}.bind(this));
+			} else {
+				if(this.textViewFactory && editor.getTextView().getType()!==this.textViewFactory.getViewType(this._contentType)){
+					this.editor.uninstallTextView();
+					this.editor.installTextView(this.textViewFactory.getViewType(this._contentType));
+				}
 			}
 			// TODO could potentially dispatch separate events for metadata and contents changing
 			this.dispatchEvent({ type: "InputChanged", input: input, name: name, metadata: metadata, contents: contents }); //$NON-NLS-0$

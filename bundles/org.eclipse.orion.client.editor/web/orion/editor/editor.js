@@ -465,9 +465,9 @@ define("orion/editor/editor", [ //$NON-NLS-0$
 		/**
 		 * Creates the underlying TextView and installs the editor's features.
 		 */
-		installTextView : function() {
+		installTextView : function(viewType) {
 			// Create textView and install optional features
-			this._textView = this._textViewFactory();
+			this._textView = this._textViewFactory(viewType);
 			if (this._undoStackFactory) {
 				this._undoStack = this._undoStackFactory.createUndoStack(this);
 			}

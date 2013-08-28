@@ -120,6 +120,13 @@ define([
 				name: "SVG",
 				extension: ["svg"],
 				image: "../images/wtp/image.gif"
+			},
+	
+			{	id: "application/project.json",
+				"extends": "application/json",
+				name: "project.json",
+				filename: ["project.json"],
+				image: "../images/wtp/json.gif"
 			}]
 		});
 

@@ -37,6 +37,7 @@ define([
 	'orion/markOccurrences',
 	'orion/syntaxchecker',
 	'orion/editor/textView',
+	'orion/editor/projectView',
 	'orion/editor/textModel',
 	'orion/editor/projectionTextModel',
 	'orion/keyBinding',
@@ -57,7 +58,7 @@ define([
 	'orion/widgets/input/DropDownMenu'
 ], function(messages, require, EventTarget, lib, mSelection, mStatus, mProgress, mDialogs, mCommandRegistry, mExtensionCommands, 
 			mFileClient, mOperationsClient, mSearchClient, mGlobalCommands, mOutliner, mProblems, mBlameAnnotation, mContentAssist, mEditorCommands, mEditorFeatures, mEditor,
-			mMarkOccurrences, mSyntaxchecker, mTextView, mTextModel, mProjectionTextModel, mKeyBinding, mEmacs, mVI, mSearcher,
+			mMarkOccurrences, mSyntaxchecker, mTextView, mProjectView, mTextModel, mProjectionTextModel, mKeyBinding, mEmacs, mVI, mSearcher,
 			mContentTypes, PageUtil, mInputManager, i18nUtil, mThemePreferences, mThemeData, EditorSettings, mEditorPreferences, URITemplate, Sidebar,
 			mTooltip, DropDownMenu) {
 
@@ -202,18 +203,36 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 	editorPreferences.getPrefs(function(prefs) {
 		settings = prefs;
 		
-		var textViewFactory = function() {
-			var textView = new mTextView.TextView({
-				parent: editorDomNode,
-				model: new mProjectionTextModel.ProjectionTextModel(new mTextModel.TextModel()),
-				wrappable: true,
-				tabSize: settings.tabSize || 4,
-				expandTab: settings.expandTab,
-				scrollAnimation: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0,
-				readonly: isReadOnly
-			});
+		var textViewFactory = function(viewType) {
+			if(viewType===mProjectView.viewType){
+				var textView = new mProjectView.TextView({
+					parent: editorDomNode,
+					model: new mProjectionTextModel.ProjectionTextModel(new mTextModel.TextModel()),
+					wrappable: true,
+					tabSize: settings.tabSize || 4,
+					expandTab: settings.expandTab,
+					scrollAnimation: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0,
+					readonly: isReadOnly
+				});
+			} else {
+				var textView = new mTextView.TextView({
+					parent: editorDomNode,
+					model: new mProjectionTextModel.ProjectionTextModel(new mTextModel.TextModel()),
+					wrappable: true,
+					tabSize: settings.tabSize || 4,
+					expandTab: settings.expandTab,
+					scrollAnimation: settings.scrollAnimation ? settings.scrollAnimationTimeout : 0,
+					readonly: isReadOnly
+				});
+			}
 			return textView;
 		};
+		textViewFactory.getViewType = function(conentType){
+			if(conentType.id==="application/project.json"){
+				return mProjectView.viewType;
+			}
+			return mTextView.viewType;
+		}
 
 		var keyBindingFactory = function(editor, keyModeStack, undoStack, contentAssist) {
 			
@@ -289,7 +308,8 @@ exports.setUpEditor = function(serviceRegistry, preferences, isReadOnly){
 			fileClient: fileClient,
 			progressService: progressService,
 			selection: selection,
-			contentTypeService: contentTypeService
+			contentTypeService: contentTypeService,
+			textViewFactory: textViewFactory
 		});
 		inputManager.addEventListener("InputChanged", function(evt) { //$NON-NLS-0$
 			if (evt.input === null || typeof evt.input === "undefined") {//$NON-NLS-0$

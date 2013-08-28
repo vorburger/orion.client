@@ -22,6 +22,8 @@ define("orion/editor/textView", [ //$NON-NLS-0$
 	'orion/editor/textTheme', //$NON-NLS-0$
 	'orion/util' //$NON-NLS-0$
 ], function(messages, mTextModel, mKeyModes, mEventTarget, mTextTheme, util) {
+	
+	var type = "text";
 
 	/** @private */
 	function getWindow(document) {
@@ -1742,6 +1744,9 @@ define("orion/editor/textView", [ //$NON-NLS-0$
 		 */
 		getModel: function() {
 			return this._model;
+		},
+		getType: function(){
+			return type;
 		},
 		/**
 		 * Returns the character offset nearest to the given pixel location.  The
@@ -6899,6 +6904,9 @@ define("orion/editor/textView", [ //$NON-NLS-0$
 	};//end prototype
 	mEventTarget.EventTarget.addMixin(TextView.prototype);
 	
-	return {TextView: TextView};
+	return {
+			TextView: TextView,
+			viewType: type
+		};
 });
 
