@@ -10,51 +10,73 @@
  ******************************************************************************/
 /*global define*/
 define([
+	'js-tests/editor/mockTextView',
 	'orion/assert',
+	'orion/edit/ast',
 	'orion/Deferred',
+	'orion/editor/editor',
 	'orion/EventTarget',
+	'orion/inputManager',
 	'orion/objects',
-	'orion/serviceregistry',
-	'orion/edit/ast'
-], function(assert, Deferred, EventTarget, objects, mServiceRegistry, ASTManager) {
-	var ServiceRegistry = mServiceRegistry.ServiceRegistry;
+	'orion/serviceregistry'
+], function(mMockTextView, assert, ASTManager, Deferred, mEditor, EventTarget, mInputManager, objects, mServiceRegistry) {
+	var Editor = mEditor.Editor,
+	    InputManager = mInputManager.InputManager,
+	    MockTextView = mMockTextView.MockTextView,
+	    ServiceRegistry = mServiceRegistry.ServiceRegistry;
+
+	function setup() {
+		var serviceRegistry = new ServiceRegistry();
+		var inputManager = new InputManager({
+			serviceRegistry: serviceRegistry,
+			editor: new Editor({
+				textViewFactory: function() {
+					return new MockTextView();
+				}
+			})
+//			fileClient: fileClient,
+//			progressService: progressService,
+//			selection: selection,
+//			contentTypeRegistry: contentTypeRegistry
+		});
+		return {
+			serviceRegistry: serviceRegistry,
+			inputManager: inputManager,
+			astManager: new ASTManager(serviceRegistry, inputManager)
+		};
+	}
 
 	var tests = {};
+	tests.test_getAST = function() {
+		var result = setup(),
+		    serviceRegistry = result.serviceRegistry,
+		    inputManager = result.inputManager;
 
-	tests['test AST is provided upon request'] = function() {
-		var serviceRegistry = new ServiceRegistry(),
-		    inputManager = {},
-		    astManager = new ASTManager(serviceRegistry, inputManager);
-		// TODO
-		// mock Editor 
-		// mock InputManager (maybe unnecessary if we have a mock Editor?)
+		serviceRegistry.registerService("orion.core.astprovider", {
+				getAST: function(context) {
+					return { ast: "this is the AST" };
+				}
+			}, { contentType: ["text/foo"] });
 
-		var astProvider = {
-			getAST: function(context) {
-				return { ast: 'this is the AST' };
-			}
-		};
-
-		var promise = new Deferred();
-		var contentAssistProvider = {
-			computeProposals: function(editorServices, context) {
-				return editorServices.getAST().then(function(ast) {
-					
-				});
-			}
-		};
-
-		serviceRegistry.registerService("orion.core.astprovider", astProvider, { contentType: ['text/foo'] });
-		serviceRegistry.registerService("orion.edit.contentAssist", contentAssistProvider, { contentType: ['text/foo'] });
-		// set the inputManager's contentType to foo
-		// Cause an editor changed
+		// Kick off the fun
+		var astManager = serviceRegistry.getService("orion.core.astmanager");
+		inputManager.dispatchEvent({ type: "ContentTypeChanged", contentType: {id: "text/foo"} });
+		var promise = astManager.getAST().then(function(ast) {
+			assert.equal(ast.ast, "this is the AST");
+		});
+		
 		return promise;
 	};
-	tests['test AST cache is used'] = function() {
+	tests.test_getAST_options = function() {
 		
 	};
-	tests['test AST cache cleared after change'] = function() {
-		// As above, but ensure cached AST is discarded given after an InputChanged
+	tests.test_AST_cache_is_used = function() {
+		// TODO
+		//inputManager.getEditor().setText("a");
+	};
+	tests.test_AST_cache_is_invalidated = function() {
+		// As above, but ensure cached AST is discarded given after a model change
+		//inputManager.getEditor().setText("a");
 	};
 
 	return tests;
